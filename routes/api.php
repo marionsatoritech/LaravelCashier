@@ -151,4 +151,50 @@ Route::prefix('stripe/')->group(function () {
         }
     });
 
+    Route::post('createCardUser', function(Request $request){
+        try{
+            DB::beginTransaction();
+            $user = User::findOrFail($request->only(["id"]))->firstOrFail();
+            $paymentMethod = Cashier::stripe()->paymentMethods->create($request->only(["card","type"]));
+            $user->addPaymentMethod($paymentMethod);
+            if(!$user->hasDefaultPaymentMethod()){
+                $user->updateDefaultPaymentMethod($paymentMethod);
+            }         
+            DB::commit();
+            return $paymentMethod;
+        }catch(Exception $ex){
+            DB::rollBack();
+            return $ex->getMessage();
+        }
+    });
+
+    Route::post('getCards', function(Request $request){
+        try{
+            DB::beginTransaction();
+            $user = User::findOrFail($request->id);
+            $paymentMethods = $user->paymentMethods();
+            DB::commit();
+            return $paymentMethods;
+        }catch(Exception $ex){
+            DB::rollBack();
+            return $ex->getMessage();
+        }
+    });
+
+    Route::post('getCardsValidation', function(Request $request){
+        try{
+            DB::beginTransaction();
+            $user = User::findOrFail($request->id);
+            if($user->hasPaymentMethod()){
+                $paymentMethods = $user->paymentMethods();
+            }else{
+                return "No payments";
+            }
+            DB::commit();
+            return $paymentMethods;
+        }catch(Exception $ex){
+            DB::rollBack();
+            return $ex->getMessage();
+        }
+    });
 });
